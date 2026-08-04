@@ -13,6 +13,12 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
+`npm install` warns that `sharp` and `unrs-resolver` have install scripts "not yet
+covered by allowScripts". That is expected and needs no action — both ship prebuilt
+native bindings as platform-specific optional dependencies, so they work without
+running their install scripts. They are listed as `false` in the `allowScripts` block
+in `package.json` to record the decision and silence the warning.
+
 The app needs a `.env` file (not committed). Required keys:
 
 | Key | Purpose |
@@ -82,7 +88,10 @@ stored in DynamoDB. The **Sync from AWS** button on the overview page pulls them
 decrypts each with that mill's keypair (`tweetnacl`), and inserts anything new.
 
 - Records already present locally are skipped before any decrypt or write, so
-  re-running is cheap and never clobbers a reviewer's status changes.
+  re-running is cheap and never clobbers a reviewer's status changes. The check is on
+  the upstream record id, which is reused as the local primary key — so syncing twice
+  cannot duplicate anything, but two upstream records describing one submission will
+  both be imported (see Notes).
 - NFL is excluded — it has its own separate table and flow.
 - Local review status always wins; the sync only ever inserts.
 
@@ -125,5 +134,17 @@ a stroke, so filled shapes get outlined rather than filled in).
   in SQL. `src/lib/applications.ts` parses and sorts them in application code.
 - Passwords are bcrypt hashed. Legacy plaintext passwords from the pre-Prisma system
   are transparently upgraded on next successful login.
-- The applications table currently contains a significant number of duplicate
-  submissions, some with conflicting review status. They are not yet de-duplicated.
+- The applications table contains a significant number of duplicate submissions —
+  roughly 19% of rows (247 of 1275 as of Aug 2026), ongoing for at least 13 months.
+  They are not yet de-duplicated.
+
+  The duplicates originate upstream, not here. Each pair is byte-identical across
+  every field except `id`, and carries two distinct upstream UUIDs, so the sync's
+  id-based skip never fires. The double-write is on the submission side — either the
+  public form POSTing twice or the ingest retrying with a fresh UUID — and fixing it
+  needs a change in the API repository.
+
+  Any de-duplication has to merge review flags rather than keep-first: a handful of
+  groups disagree on `receivedByCompany` / `dismissApplicant`, and dropping the wrong
+  row silently reverts a reviewer's decision. At least one apparent duplicate is a
+  genuine second application (same applicant, same minute, different position).

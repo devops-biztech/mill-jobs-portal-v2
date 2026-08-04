@@ -20,9 +20,18 @@ See `README.md` for what the app does. These are the things that have bitten bef
 
 ## Do not break the dev server
 
-Never run `rm -rf .next` while `npm run dev` is running — it corrupts Turbopack's
-persistent cache and takes the dev server down with it. Stop the server first, or
-just run `npm run build`, which regenerates what it needs.
+Turbopack's persistent cache in `.next` belongs to whichever dev server is running.
+Anything that rewrites `.next` underneath it corrupts that cache — `rm -rf .next`,
+but **also `npm run build`**, which is not the safe alternative it looks like.
+
+The failure is quiet and easy to misread. The server does not go down; it drops into
+a Fast Refresh rebuild loop, reloading the page several times a second. Hydration
+never completes, so client-only components render nothing while the server-rendered
+markup around them paints normally. In practice that means the recharts dashboards go
+blank and the rest of the page looks completely healthy, with no console errors.
+
+So: check for a running server before either command. Stop it, clear `.next`, restart.
+`npm run build` is only safe when nothing is serving.
 
 ## Authorization is not optional
 

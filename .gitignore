@@ -53,3 +53,4 @@ tree-preview.html
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .impeccable/config.local.json
+.impeccable/hook.cache.json
