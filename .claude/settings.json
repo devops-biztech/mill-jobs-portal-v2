@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 db/app-db.sqlite3 \".tables\")"
+    ]
+  }
+}

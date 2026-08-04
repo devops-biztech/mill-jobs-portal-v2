@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Application {
+  id                              String  @id
+  package                         String?
+  companyName                     String?
+  date                            String?
+  applicationPosition             String?
+  lastName                        String?
+  firstName                       String?
+  middleName                      String?
+  primaryPhone                    String?
+  secondaryPhone                  String?
+  email                           String?
+  mailingAddress                  String?
+  city                            String?
+  state                           String?
+  zipCode                         String?
+  availableForAnyShift            Boolean @default(false)
+  availableWeekends               Boolean @default(false)
+  ageVerified                     Boolean @default(false)
+  previouslyEmployedByCompany     Boolean @default(false)
+  datesPreviouslyEmployed         String?
+  relatedToCompanyEmployee        Boolean @default(false)
+  relatedTo                       String?
+  highschoolName                  String?
+  highschoolLocation              String?
+  hsGradStatus                    String? @default("Did Not Graduate")
+  collegeOneName                  String?
+  collegeOneCourseOfStudy         String?
+  collegeOneDegree                String?
+  collegeTwoName                  String?
+  collegeTwoCourseOfStudy         String?
+  collegeTwoDegree                String?
+  collegeThreeName                String?
+  collegeThreeCourseOfStudy       String?
+  collegeThreeDegree              String?
+  tradeSchoolOneName              String?
+  tradeSchoolOneCourseOfStudy     String?
+  tradeSchoolOneCertificate       String?
+  tradeSchoolTwoName              String?
+  tradeSchoolTwoCourseOfStudy     String?
+  tradeSchoolTwoCertificate       String?
+  tradeSchoolThreeName            String?
+  tradeSchoolThreeCourseOfStudy   String?
+  tradeSchoolThreeCertificate     String?
+  licenseOneName                  String?
+  licenseOneIssuedBy              String?
+  licenseOneExpirationDate        String?
+  licenseTwoName                  String?
+  licenseTwoIssuedBy              String?
+  licenseTwoExpirationDate        String?
+  licenseThreeName                String?
+  licenseThreeIssuedBy            String?
+  licenseThreeExpirationDate      String?
+  mayWeContactCurrentEmployer     Boolean @default(false)
+  currentEmployer                 String?
+  currentEmployerAddress          String?
+  currentEmploymentDates          String?
+  currentJobTitle                 String?
+  currentHrsPerWeek               String?
+  currentSupervisorName           String?
+  currentEmployerPhone            String?
+  currentDutiesPerformed          String?
+  currentReasonForLeaving         String?
+  mayWeContactPreviousEmployerOne Boolean @default(false)
+  previousEmployerOne             String?
+  previousEmployerAddressOne      String?
+  previousEmploymentDatesOne      String?
+  previousJobTitleOne             String?
+  previousHrsPerWeekOne           String?
+  previousSupervisorNameOne       String?
+  previousEmployerPhoneOne        String?
+  previousDutiesPerformedOne      String?
+  previousReasonForLeavingOne     String?
+  mayWeContactPreviousEmployerTwo Boolean @default(false)
+  previousEmployerTwo             String?
+  previousEmployerAddressTwo      String?
+  previousEmploymentDatesTwo      String?
+  previousJobTitleTwo             String?
+  previousHrsPerWeekTwo           String?
+  previousSupervisorNameTwo       String?
+  previousEmployerPhoneTwo        String?
+  previousDutiesPerformedTwo      String?
+  previousReasonForLeavingTwo     String?
+  documentLink                    String?
+  envelopeId                      String?
+  agreeToTerms                    Boolean @default(false)
+  receivedByCompany               Boolean @default(false)
+  dismissApplicant                Boolean @default(false)
+}
+
+model Storage {
+  id                String  @id
+  package           String
+  companyName       String
+  date              String
+  receivedByCompany Boolean @default(false)
+  dismissApplicant  Boolean @default(false)
+}
+
+model User {
+  id          String  @id
+  fullName    String
+  username    String
+  password    String
+  homeMill    String
+  nflAccess   Boolean @default(false)
+  trlAccess   Boolean @default(false)
+  srmAccess   Boolean @default(false)
+  sliAccess   Boolean @default(false)
+  stlcAccess  Boolean @default(false)
+  glAccess    Boolean @default(false)
+  adminAccess Boolean @default(false)
+}
+
+model nflApplication {
+  id                                String  @id
+  date                              String
+  companyName                       String
+  applicationPosition               String  @default("")
+  firstName                         String  @default("")
+  lastName                          String  @default("")
+  primaryPhone                      String  @default("")
+  secondaryPhone                    String  @default("")
+  email                             String  @default("")
+  mailingAddress                    String  @default("")
+  city                              String  @default("")
+  state                             String  @default("")
+  zipCode                           String  @default("")
+  anyShift                          String  @default("")
+  availableWeekends                 String  @default("")
+  previouslyEmployedByCompany       String  @default("")
+  relatedToCompanyEmployee          String  @default("")
+  hsName                            String  @default("")
+  hsYearsCompleted                  String  @default("")
+  hsDegree                          String  @default("")
+  hsGraduated                       String  @default("")
+  hsLocation                        String  @default("")
+  collegeName1                      String  @default("")
+  collegeYearsCompleted1            String  @default("")
+  collegeDegree1                    String  @default("")
+  collegeGraduated                  String  @default("")
+  collegeLocation1                  String  @default("")
+  collegeName2                      String  @default("")
+  collegeYearsCompleted2            String  @default("")
+  collegeDegree2                    String  @default("")
+  collegeGraduated2                 String  @default("")
+  collegeLocation2                  String  @default("")
+  graduateName                      String  @default("")
+  graduateYearsCompleted1           String  @default("")
+  graduateDegree1                   String  @default("")
+  graduateGraduated1                String  @default("")
+  graduateLocation1                 String  @default("")
+  specialSchoolName1                String  @default("")
+  specialSchoolYearsCompleted1      String  @default("")
+  specialSchoolDegree1              String  @default("")
+  specialSchoolGraduated1           String  @default("")
+  specialSchoolLocation1            String  @default("")
+  otherSkills                       String  @default("")
+  referenceName1                    String  @default("")
+  referencePhone1                   String  @default("")
+  referenceAddress1                 String  @default("")
+  referenceOccupation1              String  @default("")
+  referenceYearsAcquainted1         String  @default("")
+  referenceName2                    String  @default("")
+  referencePhone2                   String  @default("")
+  referenceAddress2                 String  @default("")
+  referenceOccupation2              String  @default("")
+  referenceYearsAcquainted2         String  @default("")
+  referenceName3                    String  @default("")
+  referencePhone3                   String  @default("")
+  referenceAddress3                 String  @default("")
+  referenceOccupation3              String  @default("")
+  referenceYearsAcquainted3         String  @default("")
+  tradeName1                        String  @default("")
+  tradeCourseOfStudy1               String  @default("")
+  tradeCertificate1                 String  @default("")
+  tradeName2                        String  @default("")
+  tradeCourseOfStudy2               String  @default("")
+  tradeCertificate2                 String  @default("")
+  tradeName3                        String  @default("")
+  tradeCourseOfStudy3               String  @default("")
+  tradeCertificate3                 String  @default("")
+  licenseOneName                    String  @default("")
+  licenseIssuer1                    String  @default("")
+  licenseExpiration1                String  @default("")
+  licenseTwoName                    String  @default("")
+  licenseIssuer2                    String  @default("")
+  licenseExpiration2                String  @default("")
+  licenseThreeName3                 String  @default("")
+  licenseIssuer3                    String  @default("")
+  licenseExpiration3                String  @default("")
+  currentEmployerContactable        String  @default("")
+  currentEmployer                   String  @default("")
+  currentEmployerAddress            String  @default("")
+  currentEmployerAddressState       String  @default("")
+  currentEmploymentDates            String  @default("")
+  currentJobTitle                   String  @default("")
+  currentWeeklyHours                String  @default("")
+  currentSupervisorName             String  @default("")
+  currentEmployerPhone              String  @default("")
+  currentDutiesPerformed            String  @default("")
+  currentReasonForLeaving           String  @default("")
+  previousEmployerContactable       String  @default("")
+  previousEmployer                  String  @default("")
+  previousEmployerAddress           String  @default("")
+  previousEmploymentAddressState    String  @default("")
+  previousEmploymentDates           String  @default("")
+  previousJobTitle                  String  @default("")
+  previousWeeklyHours               String  @default("")
+  previousSupervisorName            String  @default("")
+  previousEmployerPhone             String  @default("")
+  previousDutiesPerformed           String  @default("")
+  previousReasonForLeaving          String  @default("")
+  previousEmployerContactable2      String  @default("")
+  previousEmployer2                 String  @default("")
+  previousEmployerAddress2          String  @default("")
+  previousEmployerAddressState2     String  @default("")
+  previousEmploymentDates2          String  @default("")
+  previousJobTitle2                 String  @default("")
+  previousWeeklyHours2              String  @default("")
+  previousSupervisorName2           String  @default("")
+  previousEmployerPhone2            String  @default("")
+  previousDutiesPerformed2          String  @default("")
+  previousReasonForLeaving2         String  @default("")
+  penultimateEmployerContactable    String  @default("")
+  penultimateEmployer               String  @default("")
+  penultimateEmployerAddress        String  @default("")
+  penultimateEmploymentAddressState String  @default("")
+  penultimateEmploymentDates        String  @default("")
+  penultimateJobTitle               String  @default("")
+  penultimateWeeklyHours            String  @default("")
+  penultimateSupervisorName         String  @default("")
+  penultimateEmployerPhone          String  @default("")
+  penultimateDutiesPerformed        String  @default("")
+  penultimateReasonForLeaving       String  @default("")
+  ageVerified                       Boolean @default(false)
+  documentLink                      String  @default("")
+  envelopeId                        String  @default("")
+  agreeToTerms                      Boolean @default(false)
+  knowledgeAgreement                Boolean @default(false)
+  investigationAgreement            Boolean @default(false)
+  limitedRightsAgreement            Boolean @default(false)
+  limitedTimeAgreement              Boolean @default(false)
+  applicantInitials                 String  @default("")
+}
