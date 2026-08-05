@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Application } from "@/generated/prisma/client";
 import { getApplicationStatus } from "@/lib/applications";
@@ -43,6 +44,28 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function ApplicationPdf({ app }: { app: Application }) {
   const fullName = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
   const status = getApplicationStatus(app);
+
+  // Filled slots only — SLI requires just the first reference.
+  const references = [
+    {
+      name: app.referenceOneName,
+      address: app.referenceOneAddress,
+      telephone: app.referenceOneTelephone,
+      occupation: app.referenceOneOccupation,
+    },
+    {
+      name: app.referenceTwoName,
+      address: app.referenceTwoAddress,
+      telephone: app.referenceTwoTelephone,
+      occupation: app.referenceTwoOccupation,
+    },
+    {
+      name: app.referenceThreeName,
+      address: app.referenceThreeAddress,
+      telephone: app.referenceThreeTelephone,
+      occupation: app.referenceThreeOccupation,
+    },
+  ].filter((r) => r.name || r.address || r.telephone || r.occupation);
 
   return (
     <Document title={`Application - ${fullName || app.id}`}>
@@ -118,6 +141,26 @@ export function ApplicationPdf({ app }: { app: Application }) {
           <Field label="Employment dates (2)" value={app.previousEmploymentDatesTwo} />
           <Field label="Reason for leaving (2)" value={app.previousReasonForLeavingTwo} />
         </Section>
+
+        {/*
+          References. Only the SLI online application collects these, and this
+          generic template is what SLI currently renders with — there is no
+          "SLI" entry in MILL_CONFIGS, so getMillConfig returns null and the
+          PDF route falls back here. Other mills have all-null values and the
+          section is omitted.
+        */}
+        {references.length > 0 && (
+          <Section title="References">
+            {references.map((reference, index) => (
+              <Fragment key={index}>
+                <Field label={`Name (${index + 1})`} value={reference.name} />
+                <Field label={`Occupation (${index + 1})`} value={reference.occupation} />
+                <Field label={`Telephone (${index + 1})`} value={reference.telephone} />
+                <Field label={`Address (${index + 1})`} value={reference.address} />
+              </Fragment>
+            ))}
+          </Section>
+        )}
 
         <Section title="Agreements">
           <Field label="Agreed to terms" value={app.agreeToTerms ? "Yes" : "No"} />

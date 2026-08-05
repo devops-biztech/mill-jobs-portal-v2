@@ -27,10 +27,26 @@ The app needs a `.env` file (not committed). Required keys:
 | `AUTH_SECRET`, `AUTH_KEY` | Signing material for the session cookie |
 | `APPS_PUBLIC_HOST` | Endpoint the AWS sync pulls submissions from |
 | `TRL_PUB` / `TRL_SEC`, `SRM_PUB` / `SRM_SEC`, `SLI_PUB` / `SLI_SEC`, `NFL_PUB` / `NFL_SEC` | Per-mill keypairs for decrypting submissions |
-| `S_PUB` / `S_SEC` | Sender keypair, shared across mills |
+| `S_PUB` / `S_SEC` | Legacy shared sender keypair. Needed only for TRL/SRM records — see *Syncing from AWS* |
+
+Both halves of a mill's keypair must be set even though decryption only uses the
+secret: `getReceiverKeys` parses both and throws if either is missing.
 
 The database lives at `db/app-db.sqlite3` and is gitignored — it holds real
 applicant PII. Get a copy from another developer rather than generating one.
+
+**Schema changes use `prisma db push`, not migrations.** There is no
+`prisma/migrations` directory; the `_prisma_migrations` table holds stale history
+from 2022–23 whose files were removed, so `migrate deploy` has nothing to apply.
+Preview before applying, and check nothing starts with `DROP`:
+
+```bash
+npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script
+npx prisma db push
+```
+
+`prisma generate` is not wired into `npm run build` and `src/generated/prisma` is
+gitignored, so a deploy must run it explicitly before building.
 
 | Command | |
 | --- | --- |
@@ -64,6 +80,33 @@ Accounts are created and their mill access edited at `/admin/users`, which only
 admins can reach. `adminAccess` itself is deliberately *not* editable from the UI —
 it can only be changed by direct database access.
 
+### EEO answers are segregated from the application
+
+The SLI form ends with a voluntary demographic survey — race/ethnicity, sex,
+veteran status. Those answers land in **`ApplicantDemographics`**, never on
+`Application`.
+
+This is a legal boundary, not tidiness. Asking is only defensible because the
+answers are used for aggregate reporting and kept away from anyone deciding who
+to hire; the form promises the applicant exactly that. Putting them on the detail
+page or the PDF would break the promise the data was collected under.
+
+The model deliberately has **no Prisma relation** to `Application`. Without one,
+`include: { demographics: true }` does not typecheck, so no query, export, or PDF
+can pull the data in by accident — reading it requires naming the model, which is
+a conscious act visible in review. **Do not add a relation to make a join
+convenient.**
+
+A row is written for every synced application whose payload carried the survey,
+including ones the applicant left blank: an empty answer means *declined*, which
+is a real data point. Payloads from forms that never asked (TRL/SRM) get no row,
+so response rates stay meaningful.
+
+Nothing in the UI displays this data yet. Before anything does, read
+`EEO-SURVEY-REVIEW.md` in the `sli-emp-online` repo — aggregate counts are not
+automatically anonymous at these volumes, and a bucket of size 1 identifies a
+person.
+
 ## Routes
 
 | Route | |
@@ -74,6 +117,12 @@ it can only be changed by direct database access.
 | `/admin/applications/[id]` | Full application detail |
 | `/admin/users` | User and mill-access management (admin only) |
 | `/api/admin/applications/[id]/pdf` | Generated PDF of an application |
+
+Two PDF templates exist. `getMillConfig(companyName)` returns a `MillConfig` for
+mills listed in `src/lib/pdf/mill-config.ts` — currently **only TRL and SRM** —
+and those render the branded `MillApplicationPdf`. Everything else, **SLI
+included**, falls back to the generic `ApplicationPdf`. Adding a field to only one
+template silently omits it for half the mills; change both.
 
 `src/proxy.ts` guards `/admin/*` and `/api/admin/*`. Note it exports `proxy()` —
 in this version of Next.js that replaces the old `middleware.ts` convention.
@@ -86,6 +135,26 @@ required" message instead. See `src/components/desktop-only-gate.tsx`.
 Applications are submitted through a separate public site, encrypted per-mill, and
 stored in DynamoDB. The **Sync from AWS** button on the overview page pulls them in,
 decrypts each with that mill's keypair (`tweetnacl`), and inserts anything new.
+
+### Two decryption paths
+
+`nacl.box` needs a sender public key as well as the receiver's secret. Where that
+sender key comes from depends on which form produced the record:
+
+- **Ephemeral (SLI online application).** A fresh sender keypair is generated per
+  submission and its public half travels in the payload as `sender_public_key`.
+  The submitting app therefore holds only a public key and can decrypt nothing.
+- **Shared (legacy TRL/SRM forms).** One long-lived sender keypair, read from
+  `S_PUB` / `S_SEC`.
+
+`decryptSubmission` prefers the per-message key and falls back to the environment
+keypair, so both decrypt through one path. Legacy keys resolve lazily — a
+deployment ingesting only ephemeral-key records does not need `S_PUB` / `S_SEC`
+set at all.
+
+Byte arrays arrive either as JSON arrays (newer senders) or objects with numeric
+keys (older ones, from `JSON.stringify` of a `Uint8Array`). `Object.values`
+flattens both.
 
 - Records already present locally are skipped before any decrypt or write, so
   re-running is cheap and never clobbers a reviewer's status changes. The check is on

@@ -39,11 +39,11 @@ const WEIGHT = 0.70;
 const SPEED = 200;
 
 /** Fully drawn, before it starts to fade. Seconds. */
-const HOLD = 7;
+const HOLD = 15;
 /** Fade out. Seconds. */
-const FADE = 7;
+const FADE = 15;
 /** Blank beat before it begins again. Seconds. */
-const REST = 7;
+const REST = 10;
 
 /**
  * How many strokes are in flight at once. Two pens halve the draw time without

@@ -111,6 +111,44 @@ type EmploymentData = {
   reasonForLeaving: string | null;
 };
 
+type ReferenceData = {
+  name: string | null;
+  address: string | null;
+  telephone: string | null;
+  occupation: string | null;
+};
+
+/**
+ * References block. Only the SLI online application collects these; on older
+ * TRL/SRM records every field is null and the caller omits the section
+ * entirely rather than printing empty boxes.
+ */
+function ReferencesBlock({ references }: { references: ReferenceData[] }) {
+  return (
+    <View style={styles.outerBox} wrap={false}>
+      <View style={styles.row}>
+        <View style={styles.cellLast}>
+          <Text style={styles.barText}>References</Text>
+        </View>
+      </View>
+      {references.map((reference, index) => (
+        <View key={index}>
+          <View style={styles.row}>
+            <Cell label="Name" value={reference.name} flex={1.4} />
+            <Cell label="Occupation" value={reference.occupation} last flex={1.6} />
+          </View>
+          <View
+            style={index === references.length - 1 ? styles.rowNoBorder : styles.row}
+          >
+            <Cell label="Phone #" value={reference.telephone} />
+            <Cell label="Address" value={reference.address} last flex={1.6} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function EmploymentBlock({ title, data }: { title: string; data: EmploymentData }) {
   return (
     <View style={styles.outerBox} wrap={false}>
@@ -154,6 +192,29 @@ function Footer({ text }: { text: string }) {
 
 export function MillApplicationPdf({ app, mill }: { app: Application; mill: MillConfig }) {
   const fullName = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
+
+  // Filled slots only: the SLI form requires just the first reference, and
+  // other mills' forms collect none at all.
+  const references = [
+    {
+      name: app.referenceOneName,
+      address: app.referenceOneAddress,
+      telephone: app.referenceOneTelephone,
+      occupation: app.referenceOneOccupation,
+    },
+    {
+      name: app.referenceTwoName,
+      address: app.referenceTwoAddress,
+      telephone: app.referenceTwoTelephone,
+      occupation: app.referenceTwoOccupation,
+    },
+    {
+      name: app.referenceThreeName,
+      address: app.referenceThreeAddress,
+      telephone: app.referenceThreeTelephone,
+      occupation: app.referenceThreeOccupation,
+    },
+  ].filter((r) => r.name || r.address || r.telephone || r.occupation);
   const headerLogoWidth = HEADER_LOGO_HEIGHT * mill.logoAspect;
   const watermarkHeight = WATERMARK_WIDTH / mill.logoAspect;
   const watermarkStyle = {
@@ -342,6 +403,8 @@ export function MillApplicationPdf({ app, mill }: { app: Application; mill: Mill
             }}
           />
         </View>
+
+        {references.length > 0 && <ReferencesBlock references={references} />}
 
         <Text style={{ fontSize: 8, marginTop: 8, lineHeight: 1.35 }}>
           I hereby certify that all statements made in this application are true and I agree and
