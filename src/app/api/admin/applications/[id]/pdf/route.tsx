@@ -5,6 +5,7 @@ import { getApplicationById } from "@/lib/applications";
 import { getAccessScope } from "@/lib/access";
 import { ApplicationPdf } from "@/lib/pdf/application-pdf";
 import { MillApplicationPdf } from "@/lib/pdf/mill-application-pdf";
+import { ModernApplicationPdf } from "@/lib/pdf/modern-application-pdf";
 import { getMillConfig } from "@/lib/pdf/mill-config";
 
 export const runtime = "nodejs";
@@ -23,9 +24,14 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   }
 
   const mill = getMillConfig(app.companyName);
-  const buffer = await renderToBuffer(
-    mill ? <MillApplicationPdf app={app} mill={mill} /> : <ApplicationPdf app={app} />,
+  const document = !mill ? (
+    <ApplicationPdf app={app} />
+  ) : mill.template === "modern" ? (
+    <ModernApplicationPdf app={app} mill={mill} />
+  ) : (
+    <MillApplicationPdf app={app} mill={mill} />
   );
+  const buffer = await renderToBuffer(document);
 
   const fileName = [app.firstName, app.lastName].filter(Boolean).join("-") || app.id;
 

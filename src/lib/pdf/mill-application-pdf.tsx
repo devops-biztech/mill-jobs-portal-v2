@@ -236,7 +236,7 @@ export function MillApplicationPdf({ app, mill }: { app: Application; mill: Mill
           style={{ width: headerLogoWidth, height: HEADER_LOGO_HEIGHT, alignSelf: "center", marginBottom: 6 }}
         />
         <Text style={styles.tagline}>Employment Application. An Equal Opportunity Employer.</Text>
-        {mill.policyLines.map((line) => (
+        {(mill.policyLines ?? []).map((line) => (
           <Text key={line} style={styles.policyLine}>
             {line}
           </Text>

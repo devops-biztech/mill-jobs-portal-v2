@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3209",
     "lint": "eslint",
     "tree": "node scripts/build-tree-paths.mjs"
   },
