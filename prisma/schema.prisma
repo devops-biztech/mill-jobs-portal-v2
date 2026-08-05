@@ -90,12 +90,61 @@ model Application {
   previousEmployerPhoneTwo        String?
   previousDutiesPerformedTwo      String?
   previousReasonForLeavingTwo     String?
+  // References. Added 2026-08-05 for the SLI online application, which is the
+  // first form to collect them; the older TRL/SRM forms do not, so these stay
+  // null on those records. Ordinary application data, unlike the EEO answers
+  // in ApplicantDemographics — these are meant to be seen and called.
+  referenceOneName                String?
+  referenceOneAddress             String?
+  referenceOneTelephone           String?
+  referenceOneOccupation          String?
+  referenceTwoName                String?
+  referenceTwoAddress             String?
+  referenceTwoTelephone           String?
+  referenceTwoOccupation          String?
+  referenceThreeName              String?
+  referenceThreeAddress           String?
+  referenceThreeTelephone         String?
+  referenceThreeOccupation        String?
   documentLink                    String?
   envelopeId                      String?
   agreeToTerms                    Boolean @default(false)
   receivedByCompany               Boolean @default(false)
   dismissApplicant                Boolean @default(false)
 }
+
+/// Voluntary EEO survey answers, kept in their own table on purpose.
+///
+/// This data may not reach anyone making a hiring decision. It exists only
+/// for aggregate demographic reporting, which is the sole basis on which it
+/// was lawful to ask for it.
+///
+/// There is deliberately NO Prisma relation to `Application`. A relation
+/// would make `include: { demographics: true }` expressible, and sooner or
+/// later something would include it — the detail page, an export, the PDF
+/// generator. With no relation, reading this requires naming the model
+/// explicitly, which is a conscious act that shows up in code review.
+///
+/// A row is written for every synced application, including ones where the
+/// applicant skipped the survey: an empty answer is a real data point (it
+/// separates "declined" from "never asked") and response rates matter when
+/// interpreting the aggregates.
+model ApplicantDemographics {
+  applicationId         String  @id
+  companyName           String
+  /// Copied from the application, so reports can scope by period without
+  /// joining back to anything that identifies the applicant.
+  date                  String
+  /// Comma-joined multi-select, combined race and ethnicity (SPD 15, 2024).
+  eeoRacialEthnic       String?
+  eeoSex                String?
+  eeoVeteran            String?
+}
+//
+// No disability column: the SLI form does not ask, because OFCCP Form CC-305
+// applies only to federal contractors and that status is unconfirmed. If it
+// is confirmed, add `eeoDisability` here and restore the question. See
+// EEO-SURVEY-REVIEW.md in the sli-emp-online repo.
 
 model Storage {
   id                String  @id

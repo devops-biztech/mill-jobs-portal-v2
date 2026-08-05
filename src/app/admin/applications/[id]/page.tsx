@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Download } from "lucide-react";
@@ -28,6 +29,32 @@ export default async function ApplicationDetailPage({
 
   const status = getApplicationStatus(app);
   const fullName = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
+
+  /*
+   * Only the SLI form collects references, and only its first slot is
+   * required — so filter to the slots that were actually filled rather than
+   * rendering three sets of blanks on every other mill's applications.
+   */
+  const references = [
+    {
+      name: app.referenceOneName,
+      address: app.referenceOneAddress,
+      telephone: app.referenceOneTelephone,
+      occupation: app.referenceOneOccupation,
+    },
+    {
+      name: app.referenceTwoName,
+      address: app.referenceTwoAddress,
+      telephone: app.referenceTwoTelephone,
+      occupation: app.referenceTwoOccupation,
+    },
+    {
+      name: app.referenceThreeName,
+      address: app.referenceThreeAddress,
+      telephone: app.referenceThreeTelephone,
+      occupation: app.referenceThreeOccupation,
+    },
+  ].filter((r) => r.name || r.address || r.telephone || r.occupation);
 
   return (
     <div className="space-y-6">
@@ -157,6 +184,30 @@ export default async function ApplicationDetailPage({
           <DetailField label="Reason for leaving (2)" value={app.previousReasonForLeavingTwo} />
         </CardContent>
       </Card>
+
+      {references.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>References</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {references.map((reference, index) => (
+              <Fragment key={index}>
+                <DetailField label={`Name (${index + 1})`} value={reference.name} />
+                <DetailField
+                  label={`Occupation (${index + 1})`}
+                  value={reference.occupation}
+                />
+                <DetailField
+                  label={`Telephone (${index + 1})`}
+                  value={reference.telephone}
+                />
+                <DetailField label={`Address (${index + 1})`} value={reference.address} />
+              </Fragment>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

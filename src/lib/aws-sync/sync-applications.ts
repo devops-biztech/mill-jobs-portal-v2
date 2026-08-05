@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { decryptSubmission, DecryptionError } from "@/lib/aws-sync/decrypt";
+import { decryptSubmission, DecryptionError, type KeyPair } from "@/lib/aws-sync/decrypt";
 import { getReceiverKeys, getSenderKeys } from "@/lib/aws-sync/keys";
 
 export type SyncResult = {
@@ -12,6 +12,8 @@ export type SyncResult = {
   skippedNoKeys: number;
   failedDecrypt: number;
   failedOther: number;
+  /** Applications whose payload carried the voluntary EEO survey. */
+  demographicsRecorded: number;
   /** Small sample of error messages, for surfacing to the admin. */
   errors: string[];
 };
@@ -22,9 +24,22 @@ type ParsedItem = {
   date: string;
   cipherText: Uint8Array;
   nonce: Uint8Array;
+  /** Present only on ephemeral-sender records (see decrypt.ts). */
+  senderPublicKey?: Uint8Array;
   receivedByCompany: boolean;
   dismissApplicant: boolean;
 };
+
+/**
+ * Byte arrays arrive either as JSON arrays (newer senders) or as objects with
+ * numeric keys (older senders, from `JSON.stringify` of a Uint8Array).
+ * `Object.values` flattens both to the same number[].
+ */
+type ByteArray = Record<string, number> | number[];
+
+function toBytes(value: ByteArray): Uint8Array {
+  return new Uint8Array(Object.values(value));
+}
 
 function parseRawItem(item: unknown): ParsedItem | null {
   if (typeof item !== "object" || item === null) return null;
@@ -35,7 +50,11 @@ function parseRawItem(item: unknown): ParsedItem | null {
   if (typeof company !== "string" || !company.trim()) return null;
   if (typeof pkg !== "string") return null;
 
-  let parsedPackage: { cipher_text?: Record<string, number>; one_time_code?: Record<string, number> };
+  let parsedPackage: {
+    cipher_text?: ByteArray;
+    one_time_code?: ByteArray;
+    sender_public_key?: ByteArray;
+  };
   try {
     parsedPackage = JSON.parse(pkg);
   } catch {
@@ -47,8 +66,11 @@ function parseRawItem(item: unknown): ParsedItem | null {
     id,
     company,
     date: typeof date === "string" ? date : "",
-    cipherText: new Uint8Array(Object.values(parsedPackage.cipher_text)),
-    nonce: new Uint8Array(Object.values(parsedPackage.one_time_code)),
+    cipherText: toBytes(parsedPackage.cipher_text),
+    nonce: toBytes(parsedPackage.one_time_code),
+    senderPublicKey: parsedPackage.sender_public_key
+      ? toBytes(parsedPackage.sender_public_key)
+      : undefined,
     receivedByCompany: record.receivedByCompany === true,
     dismissApplicant: record.dismissApplicant === true,
   };
@@ -62,6 +84,30 @@ function str(value: unknown): string | null {
 
 function bool(value: unknown): boolean {
   return value === true || value === "true";
+}
+
+/**
+ * Voluntary EEO survey answers, if this payload carried them at all.
+ *
+ * Presence of the *keys* is the test, not truthiness: a blank answer means
+ * the applicant was asked and declined, which is a real data point and must
+ * be recorded. Returning null means the form had no survey — true of the
+ * older TRL/SRM applications — and no demographics row is written for those,
+ * so response rates aren't diluted by forms that never asked.
+ *
+ * Deliberately separate from `mapDecryptedFields`: these values must never
+ * be spread onto the Application record. See `ApplicantDemographics` in
+ * prisma/schema.prisma for why the segregation exists.
+ */
+function mapDemographics(d: Record<string, unknown>) {
+  const asked = "eeoRacialEthnic" in d || "eeoSex" in d || "eeoVeteran" in d;
+  if (!asked) return null;
+
+  return {
+    eeoRacialEthnic: str(d.eeoRacialEthnic),
+    eeoSex: str(d.eeoSex),
+    eeoVeteran: str(d.eeoVeteran),
+  };
 }
 
 /** Maps a decrypted submission payload onto the Application model's fields. */
@@ -146,6 +192,19 @@ function mapDecryptedFields(d: Record<string, unknown>) {
     previousEmployerPhoneTwo: str(d.previousEmployerPhoneTwo),
     previousDutiesPerformedTwo: str(d.previousDutiesPerformedTwo),
     previousReasonForLeavingTwo: str(d.previousReasonForLeavingTwo),
+    // References — only the SLI form sends these; null on TRL/SRM records.
+    referenceOneName: str(d.referenceOneName),
+    referenceOneAddress: str(d.referenceOneAddress),
+    referenceOneTelephone: str(d.referenceOneTelephone),
+    referenceOneOccupation: str(d.referenceOneOccupation),
+    referenceTwoName: str(d.referenceTwoName),
+    referenceTwoAddress: str(d.referenceTwoAddress),
+    referenceTwoTelephone: str(d.referenceTwoTelephone),
+    referenceTwoOccupation: str(d.referenceTwoOccupation),
+    referenceThreeName: str(d.referenceThreeName),
+    referenceThreeAddress: str(d.referenceThreeAddress),
+    referenceThreeTelephone: str(d.referenceThreeTelephone),
+    referenceThreeOccupation: str(d.referenceThreeOccupation),
     documentLink: str(d.documentLink),
     envelopeId: str(d.envelopeId),
     agreeToTerms: bool(d.agreeToTerms),
@@ -180,7 +239,24 @@ export async function syncApplicationsFromAws(): Promise<SyncResult> {
     throw new Error("Unexpected AWS response shape (expected an array)");
   }
 
-  const senderKeys = getSenderKeys();
+  /*
+   * Resolved lazily and only for legacy records. Ephemeral-sender records
+   * (SLI) carry their own sender public key, so a deployment that only
+   * ingests those never needs S_PUB/S_SEC configured at all — and shouldn't
+   * fail the whole sync for missing keys it isn't going to use.
+   */
+  let legacySenderKeys: KeyPair | null | undefined;
+  const getLegacySenderKeys = (): KeyPair | null => {
+    if (legacySenderKeys === undefined) {
+      try {
+        legacySenderKeys = getSenderKeys();
+      } catch {
+        legacySenderKeys = null;
+      }
+    }
+    return legacySenderKeys;
+  };
+
   const existingIds = new Set(
     (await prisma.application.findMany({ select: { id: true } })).map((row) => row.id),
   );
@@ -193,6 +269,7 @@ export async function syncApplicationsFromAws(): Promise<SyncResult> {
     skippedNoKeys: 0,
     failedDecrypt: 0,
     failedOther: 0,
+    demographicsRecorded: 0,
     errors: [],
   };
 
@@ -227,8 +304,12 @@ export async function syncApplicationsFromAws(): Promise<SyncResult> {
     let decrypted: Record<string, unknown>;
     try {
       decrypted = decryptSubmission(
-        { cipherText: item.cipherText, nonce: item.nonce },
-        senderKeys,
+        {
+          cipherText: item.cipherText,
+          nonce: item.nonce,
+          senderPublicKey: item.senderPublicKey,
+        },
+        item.senderPublicKey ? null : getLegacySenderKeys(),
         receiverKeys,
       ) as Record<string, unknown>;
     } catch (error) {
@@ -239,19 +320,39 @@ export async function syncApplicationsFromAws(): Promise<SyncResult> {
 
     try {
       const fields = mapDecryptedFields(decrypted);
+      const demographics = mapDemographics(decrypted);
 
-      await prisma.application.create({
-        data: {
-          id: item.id,
-          companyName: item.company,
-          date: item.date,
-          ...fields,
-          receivedByCompany: item.receivedByCompany,
-          dismissApplicant: item.dismissApplicant,
-        },
+      /*
+       * One transaction: an application without its demographics row would
+       * silently under-report, and a demographics row without its
+       * application would be an orphan no report could scope correctly.
+       */
+      await prisma.$transaction(async (tx) => {
+        await tx.application.create({
+          data: {
+            id: item.id,
+            companyName: item.company,
+            date: item.date,
+            ...fields,
+            receivedByCompany: item.receivedByCompany,
+            dismissApplicant: item.dismissApplicant,
+          },
+        });
+
+        if (demographics) {
+          await tx.applicantDemographics.create({
+            data: {
+              applicationId: item.id,
+              companyName: item.company,
+              date: item.date,
+              ...demographics,
+            },
+          });
+        }
       });
 
       result.created += 1;
+      if (demographics) result.demographicsRecorded += 1;
     } catch (error) {
       result.failedOther += 1;
       recordError(`${item.id}: ${error instanceof Error ? error.message : "unknown error"}`);
