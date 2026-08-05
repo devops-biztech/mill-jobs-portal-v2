@@ -68,12 +68,23 @@ table rather than altering it. `prisma generate` is not part of `npm run build`
 and `src/generated/prisma` is gitignored, so run it explicitly after a schema
 change or the client goes stale.
 
-## Both PDF templates, every time
+## All three PDF templates, every time
 
-`getMillConfig` only knows TRL and SRM. Every other mill — **including SLI** —
-renders with the generic `ApplicationPdf`, not `MillApplicationPdf`. A field
-added to one template only is silently missing for half the applications. This
-has already happened once with references.
+`getMillConfig` knows TRL, SRM and SLI. Which template renders is the config's
+`template` field: TRL and SRM are `classic` (`MillApplicationPdf`, a facsimile of
+their paper forms), SLI is `modern` (`ModernApplicationPdf`, laid out for
+reading). Mills with no config entry — NFL and anything new — still fall back to
+the generic `ApplicationPdf`. A field added to one template only is silently
+missing for the mills on the others. This has already happened once with
+references.
+
+`ModernApplicationPdf` is config-driven, not SLI-specific: another mill adopts it
+by setting `template: "modern"` and adding a `theme`.
+
+Two react-pdf traps that fail silently, both already hit here: a `lineHeight` on
+the `Page` style drops every absolutely positioned child (the footer and running
+header vanish), and `View` has no `render` prop — dynamic per-page content has to
+be a `Text`.
 
 ## Generated files
 

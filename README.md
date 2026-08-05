@@ -118,11 +118,20 @@ person.
 | `/admin/users` | User and mill-access management (admin only) |
 | `/api/admin/applications/[id]/pdf` | Generated PDF of an application |
 
-Two PDF templates exist. `getMillConfig(companyName)` returns a `MillConfig` for
-mills listed in `src/lib/pdf/mill-config.ts` — currently **only TRL and SRM** —
-and those render the branded `MillApplicationPdf`. Everything else, **SLI
-included**, falls back to the generic `ApplicationPdf`. Adding a field to only one
-template silently omits it for half the mills; change both.
+Three PDF templates exist. `getMillConfig(companyName)` returns a `MillConfig` for
+mills listed in `src/lib/pdf/mill-config.ts` — currently TRL, SRM and SLI — and
+its `template` field picks the renderer:
+
+| `template` | Renderer | Mills |
+| --- | --- | --- |
+| `classic` | `MillApplicationPdf` — a facsimile of the mill's paper form | TRL, SRM |
+| `modern` | `ModernApplicationPdf` — branded, laid out for reading, theme and contact details from the config | SLI |
+| *(no config entry)* | `ApplicationPdf`, the generic fallback | NFL and anything new |
+
+`ModernApplicationPdf` carries no EEO answers, by the same rule as everything else
+that touches an application: they are not on `Application` and must not be joined
+in. Adding a field to only one template silently omits it for the mills on the
+others; change all three.
 
 `src/proxy.ts` guards `/admin/*` and `/api/admin/*`. Note it exports `proxy()` —
 in this version of Next.js that replaces the old `middleware.ts` convention.
