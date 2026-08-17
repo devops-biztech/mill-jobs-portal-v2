@@ -103,10 +103,20 @@ function mapDemographics(d: Record<string, unknown>) {
   const asked = "eeoRacialEthnic" in d || "eeoSex" in d || "eeoVeteran" in d;
   if (!asked) return null;
 
+  /*
+   * The VEVRAA and CC-305 fields are TRL-only: TRL is a covered federal
+   * contractor and asks the protected-veteran and disability questions, while
+   * SLI asks a plain-language veteran question and no disability question at
+   * all. SLI payloads simply have no such keys and `str()` yields null for
+   * them, so one shared mapper serves both without branching on company.
+   */
   return {
     eeoRacialEthnic: str(d.eeoRacialEthnic),
     eeoSex: str(d.eeoSex),
     eeoVeteran: str(d.eeoVeteran),
+    eeoVeteranCategories: str(d.eeoVeteranCategories),
+    eeoVeteranDischargeDate: str(d.eeoVeteranDischargeDate),
+    eeoDisability: str(d.eeoDisability),
   };
 }
 

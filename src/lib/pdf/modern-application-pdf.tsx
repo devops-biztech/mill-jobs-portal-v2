@@ -51,6 +51,23 @@ const styles = StyleSheet.create({
   eeoNote: { fontSize: 8, lineHeight: 1.35, marginTop: 3 },
 
   /**
+   * Standing policy sentences, for the mills whose paper form carries them.
+   * Bold italic, matching how they are set on the printed originals and how
+   * `classic` already renders the same strings.
+   *
+   * Added when TRL moved from `classic` to `modern`: `policyLines` used to be
+   * classic-only, so the move would otherwise have dropped TRL's three
+   * drug-free-workplace sentences off the printed application without a word.
+   * Mills that declare no `policyLines` (SLI) render nothing here.
+   */
+  policyLine: {
+    fontSize: 8,
+    lineHeight: 1.35,
+    marginTop: 2,
+    fontFamily: "Helvetica-BoldOblique",
+  },
+
+  /**
    * Repeated on pages 2+ so a detached page still names the applicant. It sits
    * in the top padding, out of the flow, and renders as empty text on page 1
    * where the full masthead already is.
@@ -500,6 +517,11 @@ export function ModernApplicationPdf({ app, mill }: { app: Application; mill: Mi
         <Text style={[styles.eeoNote, { color: theme.muted }]}>
           {mill.headerTitle} · Employment Application · An Equal Opportunity Employer
         </Text>
+        {(mill.policyLines ?? []).map((line) => (
+          <Text key={line} style={[styles.policyLine, { color: theme.ink }]}>
+            {line}
+          </Text>
+        ))}
 
         <View style={[styles.meta, { backgroundColor: theme.panel }]}>
           <View style={styles.metaItem}>

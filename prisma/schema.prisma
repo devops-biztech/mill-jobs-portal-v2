@@ -130,21 +130,35 @@ model Application {
 /// separates "declined" from "never asked") and response rates matter when
 /// interpreting the aggregates.
 model ApplicantDemographics {
-  applicationId         String  @id
-  companyName           String
+  applicationId           String  @id
+  companyName             String
   /// Copied from the application, so reports can scope by period without
   /// joining back to anything that identifies the applicant.
-  date                  String
+  date                    String
   /// Comma-joined multi-select, combined race and ethnicity (SPD 15, 2024).
-  eeoRacialEthnic       String?
-  eeoSex                String?
-  eeoVeteran            String?
+  eeoRacialEthnic         String?
+  eeoSex                  String?
+  /// Plain-language answer for SLI; the VEVRAA top-level status for TRL.
+  eeoVeteran              String?
+  /// TRL only. Comma-joined VEVRAA protected-veteran classifications.
+  /// Multi-select because a veteran can be both disabled and recently
+  /// separated, and the annual VETS-4212 filing counts each category.
+  eeoVeteranCategories    String?
+  /// TRL only. Set only when "Recently separated veteran" is selected.
+  eeoVeteranDischargeDate String?
+  /// TRL only. OFCCP Form CC-305 answer.
+  eeoDisability           String?
 }
+
 //
-// No disability column: the SLI form does not ask, because OFCCP Form CC-305
-// applies only to federal contractors and that status is unconfirmed. If it
-// is confirmed, add `eeoDisability` here and restore the question. See
-// EEO-SURVEY-REVIEW.md in the sli-emp-online repo.
+// The disability and VEVRAA columns are populated by TRL and left null by SLI.
+// TRL's own paper application carries Form CC-305 and the VEVRAA
+// self-identification form and states its covered federal contractor status
+// outright, so TRL asks both questions. SLI's contractor status is
+// unconfirmed, so its form asks a plain-language veteran question and nothing
+// about disability — see EEO-SURVEY-REVIEW.md in the sli-emp-online repo.
+// If SLI's status is ever confirmed, it can start populating these same
+// columns without a further migration.
 
 model Storage {
   id                String  @id
