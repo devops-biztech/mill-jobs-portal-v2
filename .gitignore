@@ -37,8 +37,10 @@ yarn-error.log*
 .vercel
 
 # local sqlite database (contains applicant PII, do not commit)
-/db/*.sqlite3
-/db/*.sqlite3-journal
+# The trailing glob is load-bearing: it catches -journal, -wal, and dated
+# backup copies like app-db.sqlite3.backup-20260813-103434, which the bare
+# `*.sqlite3` pattern does NOT match.
+/db/*.sqlite3*
 
 # typescript
 *.tsbuildinfo
