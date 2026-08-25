@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DetailField } from "@/components/admin/detail-field";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { StatusActions } from "@/components/admin/status-actions";
+import { DeleteApplicationDialog } from "@/components/admin/delete-application-dialog";
 
 function formatDateTime(value: string | null) {
   if (!value) return null;
@@ -73,6 +74,16 @@ export default async function ApplicationDetailPage({
               Submitted {formatDateTime(app.date) ?? "—"}
             </span>
           </div>
+          {/*
+            * The id is what the applicant was shown as their confirmation
+            * number when they submitted, so it belongs on screen where it can
+            * be checked against the one they're reading out. `select-all`
+            * makes one click grab the whole thing.
+            */}
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Confirmation no.{" "}
+            <span className="font-mono text-xs text-foreground select-all">{app.id}</span>
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <StatusActions id={app.id} status={status} />
@@ -205,6 +216,28 @@ export default async function ApplicationDetailPage({
                 <DetailField label={`Address (${index + 1})`} value={reference.address} />
               </Fragment>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {scope.isAdmin && (
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle>Danger zone</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-start justify-between gap-6">
+            <p className="text-sm text-muted-foreground">
+              Permanently delete this application and its EEO survey answers. Intended for
+              clearing the duplicate submissions that arrive from upstream — check the
+              confirmation number above against the copy you mean to keep, and keep whichever
+              one carries the review status you want, since deleting the wrong one reverts it.
+            </p>
+            <DeleteApplicationDialog
+              id={app.id}
+              applicantName={fullName}
+              companyName={app.companyName}
+              submittedDate={formatDateTime(app.date)}
+            />
           </CardContent>
         </Card>
       )}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Briefcase, FileText, LayoutDashboard, LogOut, Users } from "lucide-react";
+import { Briefcase, FileText, LayoutDashboard, LogOut, ScrollText, Users } from "lucide-react";
 import { logoutAction } from "@/actions/auth";
 import type { AccessScope } from "@/lib/access";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,11 @@ export function AppSidebar({
   const pathname = usePathname();
   const accessLabel = scope.isAdmin ? "All mills" : scope.companies.join(", ") || "No mills";
   const navItems = scope.isAdmin
-    ? [...NAV_ITEMS, { href: "/admin/users", label: "Users", icon: Users }]
+    ? [
+        ...NAV_ITEMS,
+        { href: "/admin/users", label: "Users", icon: Users },
+        { href: "/admin/logs", label: "Activity", icon: ScrollText },
+      ]
     : NAV_ITEMS;
 
   return (

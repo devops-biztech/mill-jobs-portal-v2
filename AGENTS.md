@@ -52,6 +52,56 @@ applicants this data is kept from the people making hiring decisions, and that
 promise is the only reason collecting it is defensible. Read the *EEO answers are
 segregated* section of the README before touching `mapDemographics`.
 
+## Deleting an application must take the EEO row with it
+
+`ApplicantDemographics` has no relation to `Application`, so it gets **no
+cascade**. `deleteApplication` removes both in one transaction, and anything
+else that deletes an application must do the same. An orphaned demographics row
+is not a tidiness problem — the EEO aggregates would keep counting a submission
+whose application is gone, so cleaning up duplicates would silently corrupt the
+demographic reporting it was meant to leave alone.
+
+## A delete without a tombstone is a delete that undoes itself
+
+Anything that removes an `Application` must also write `DeletedApplication`,
+in the same transaction. The AWS dataset still holds the record, nothing here
+can remove it from there, and the sync decides what to import by asking whether
+the id is already local — which deleting the row is exactly what makes false.
+The record comes back on the next sync, *pending*, because the insert takes the
+upstream review flags. This already happened once in production: 21 deleted
+applications returned on the first sync after a cleanup.
+
+Tombstones live only in the database, so moving the app to another copy of it
+loses them while keeping the applications. `npm run deletions:check` rebuilds
+them from the activity log; run it after any database swap, before syncing.
+
+Correspondingly, the tombstone write is an `upsert`, not a `create`. A record
+deleted before the tombstone existed can be back in the table and tombstoned at
+the same time, and deleting it again must not fail on the primary key.
+
+## The confirmation number is the application id
+
+There is no confirmation-number column. The public forms generate the UUID,
+show it to the applicant, and the sync reuses it as the local primary key — so
+`Application.id` is what an applicant reads back over the phone. Do not add a
+column for it; do not shorten or reformat it anywhere it's meant to be matched
+against what they were given.
+
+Search terms are only compared against ids when `looksLikeConfirmationNumber`
+says so. Dropping that guard makes every short search term LIKE-match a large
+share of the table.
+
+## Every human-initiated write gets an audit entry
+
+`/admin/logs` is only as truthful as the actions that feed it. A new server
+action that changes application status, account state or credentials must call
+`recordAudit`, inside the same transaction as the write where one exists — the
+delete path depends on that atomicity. The AWS sync is the deliberate exception:
+it has no actor.
+
+`AUDIT_ACTIONS` values are stored as literal strings. Renaming one orphans every
+row already written under the old name.
+
 ## Schema changes: `db push`, not migrations
 
 There is no `prisma/migrations` directory. `_prisma_migrations` holds stale rows
@@ -71,8 +121,8 @@ change or the client goes stale.
 ## All three PDF templates, every time
 
 `getMillConfig` knows TRL, SRM and SLI. Which template renders is the config's
-`template` field: TRL and SRM are `classic` (`MillApplicationPdf`, a facsimile of
-their paper forms), SLI is `modern` (`ModernApplicationPdf`, laid out for
+`template` field: TRL and SRM are `classic` (`MillApplicationPdf`, a facsimile
+of their paper forms), SLI is `modern` (`ModernApplicationPdf`, laid out for
 reading). Mills with no config entry — NFL and anything new — still fall back to
 the generic `ApplicationPdf`. A field added to one template only is silently
 missing for the mills on the others. This has already happened once with

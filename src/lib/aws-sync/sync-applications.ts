@@ -8,6 +8,8 @@ export type SyncResult = {
   created: number;
   /** Already present locally, so skipped entirely: no decrypt, no write. */
   skippedExisting: number;
+  /** Deleted here on purpose, so never re-imported. See DeletedApplication. */
+  skippedDeleted: number;
   skippedNfl: number;
   skippedNoKeys: number;
   failedDecrypt: number;
@@ -228,6 +230,12 @@ function mapDecryptedFields(d: Record<string, unknown>) {
  * source of truth for existing rows once synced, so re-running this never
  * re-decrypts unchanged data or clobbers an admin's review status.
  *
+ * Records an admin deleted are skipped too, by upstream id. That check is not
+ * redundant with the one above: a hard delete removes the very row the
+ * existing-id check consults, so deleted applications would otherwise be the
+ * one category guaranteed to come back — and to come back pending, since the
+ * insert takes the upstream review flags.
+ *
  * The AWS endpoint itself has no way to ask for "just what's new since X"
  * (no query param support), so every sync still downloads the full dataset —
  * this only saves the decrypt/write work on the ones we've already seen.
@@ -271,10 +279,21 @@ export async function syncApplicationsFromAws(): Promise<SyncResult> {
     (await prisma.application.findMany({ select: { id: true } })).map((row) => row.id),
   );
 
+  /*
+   * Applications an admin deleted on purpose. These are still in the upstream
+   * dataset — nothing here can remove them from it — and they are no longer in
+   * the Application table, so the existing-id check above would wave every one
+   * of them straight back in.
+   */
+  const deletedIds = new Set(
+    (await prisma.deletedApplication.findMany({ select: { id: true } })).map((row) => row.id),
+  );
+
   const result: SyncResult = {
     totalFetched: raw.length,
     created: 0,
     skippedExisting: 0,
+    skippedDeleted: 0,
     skippedNfl: 0,
     skippedNoKeys: 0,
     failedDecrypt: 0,
@@ -302,6 +321,11 @@ export async function syncApplicationsFromAws(): Promise<SyncResult> {
 
     if (existingIds.has(item.id)) {
       result.skippedExisting += 1;
+      continue;
+    }
+
+    if (deletedIds.has(item.id)) {
+      result.skippedDeleted += 1;
       continue;
     }
 

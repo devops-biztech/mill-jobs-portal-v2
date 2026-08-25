@@ -1,6 +1,5 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Application } from "@/generated/prisma/client";
-import { getApplicationStatus } from "@/lib/application-status";
 import type { MillConfig, MillTheme } from "@/lib/pdf/mill-config";
 
 /**
@@ -383,7 +382,6 @@ function EmploymentCard({
 export function ModernApplicationPdf({ app, mill }: { app: Application; mill: MillConfig }) {
   const theme = mill.theme ?? FALLBACK_THEME;
   const fullName = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
-  const status = getApplicationStatus(app);
   const logoWidth = LOGO_HEIGHT * mill.logoAspect;
 
   const schooling = [
@@ -531,12 +529,8 @@ export function ModernApplicationPdf({ app, mill }: { app: Application; mill: Mi
             </Text>
           </View>
           <View style={styles.metaItem}>
-            <Text style={[styles.label, { color: theme.muted }]}>Submitted</Text>
+            <Text style={[styles.label, { color: theme.muted }]}>Date Applied</Text>
             <Text style={styles.value}>{formatDate(app.date)}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Text style={[styles.label, { color: theme.muted }]}>Review status</Text>
-            <Text style={[styles.value, { textTransform: "capitalize" }]}>{status}</Text>
           </View>
         </View>
 

@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getApplicationStatus } from "@/lib/application-status";
+import { looksLikeConfirmationNumber } from "@/lib/confirmation-number";
 import { companyWhereClause, type AccessScope } from "@/lib/access";
 
 export const APPLICATIONS_PAGE_SIZE = 25;
@@ -61,6 +62,18 @@ export async function getApplications({
           { email: { contains: token } },
           { applicationPosition: { contains: token } },
           { primaryPhone: { contains: token } },
+          /*
+           * The id doubles as the confirmation number the applicant is given
+           * on submission, so it's searchable through the same box — an
+           * applicant who insists they applied can read theirs back and be
+           * found even when nothing about their name or email matches what
+           * they remember typing.
+           *
+           * Only for tokens shaped like part of a UUID: see
+           * looksLikeConfirmationNumber for why an unguarded id match would
+           * swamp ordinary name searches.
+           */
+          ...(looksLikeConfirmationNumber(token) ? [{ id: { contains: token } }] : []),
         ],
       })),
     ],

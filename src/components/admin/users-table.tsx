@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
+import { ResetPasswordDialog } from "@/components/admin/reset-password-dialog";
 
 function MillAccessRow({ user }: { user: UserSummary }) {
   const [mills, setMills] = useState<MillCode[]>(user.mills);
@@ -65,6 +66,7 @@ export function UsersTable({ users }: { users: UserSummary[] }) {
               <TableHead>Username</TableHead>
               <TableHead>Home mill</TableHead>
               <TableHead>Mill access</TableHead>
+              <TableHead className="text-right">Password</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -83,6 +85,13 @@ export function UsersTable({ users }: { users: UserSummary[] }) {
                   ) : (
                     <MillAccessRow user={user} />
                   )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <ResetPasswordDialog
+                    userId={user.id}
+                    fullName={user.fullName}
+                    username={user.username}
+                  />
                 </TableCell>
               </TableRow>
             ))}
