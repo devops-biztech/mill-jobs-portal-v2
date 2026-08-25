@@ -160,6 +160,65 @@ model ApplicantDemographics {
 // If SLI's status is ever confirmed, it can start populating these same
 // columns without a further migration.
 
+/// Upstream ids that must never be imported again.
+///
+/// The AWS endpoint is append-only as far as this app is concerned: nothing
+/// here can remove a record from it, and every sync re-downloads the entire
+/// dataset. What normally makes that idempotent is the sync's "do we already
+/// have this id?" check — but a hard delete removes precisely the row that
+/// check depends on, so without a tombstone the very next sync restores
+/// anything an admin deleted. Worse than restoring it: the record comes back
+/// carrying the *upstream* review flags, so a reviewed application returns as
+/// pending and the reviewer's decision is silently undone.
+///
+/// Rows are written by `deleteApplication`, in the same transaction as the
+/// delete. Removing one here makes that record eligible for import again on
+/// the next sync, which is the only way to undo a delete.
+model DeletedApplication {
+  /// The upstream record id — the same value `Application.id` holds.
+  id          String   @id
+  deletedAt   DateTime @default(now())
+  actorId     String
+  actorName   String
+  companyName String?
+}
+
+/// Append-only record of deliberate human actions in the portal: review
+/// status changes, account creation, password resets, and hard deletes.
+///
+/// The AWS sync deliberately writes nothing here — this answers "who did
+/// this", and machine ingestion has no who.
+///
+/// `actorName`, `targetLabel` and `companyName` are copies taken at write
+/// time, not relations. A hard delete removes the `Application` row outright
+/// and the entire point of that entry is to still say what was removed after
+/// it's gone; a relation would either block the delete or cascade the log
+/// away with it. The same reasoning covers the actor: the log has to survive
+/// a user being renamed or removed.
+model AuditLog {
+  id String @id
+
+  createdAt DateTime @default(now())
+
+  actorId   String
+  actorName String
+
+  /// One of the AUDIT_ACTIONS values in src/lib/audit.ts.
+  action String
+
+  targetId String
+  /// Human-readable name for the target — applicant name, or username.
+  targetLabel String?
+  /// Mill the target belonged to, where one applies. Null for user actions,
+  /// which aren't scoped to a mill.
+  companyName String?
+  /// Extra context for the entry, e.g. the submitted date of a deleted
+  /// application. Displayed verbatim.
+  detail String?
+
+  @@index([createdAt])
+}
+
 model Storage {
   id                String  @id
   package           String

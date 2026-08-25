@@ -17,7 +17,12 @@ export function SyncAwsButton() {
       try {
         const result = await syncFromAws();
         const hadFailures = result.failedDecrypt > 0 || result.failedOther > 0;
-        const summary = `${result.created} new of ${result.totalFetched} fetched (${result.skippedExisting} already up to date)`;
+        // Deleted records are held back rather than re-imported; say so, so
+        // that a sync which appears to do nothing is legible.
+        const heldBack = result.skippedDeleted
+          ? `, ${result.skippedDeleted} held back as deleted`
+          : "";
+        const summary = `${result.created} new of ${result.totalFetched} fetched (${result.skippedExisting} already up to date${heldBack})`;
 
         if (hadFailures) {
           toast.warning("Sync completed with some issues", {

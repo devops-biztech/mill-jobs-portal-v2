@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3209",
     "lint": "eslint",
-    "tree": "node scripts/build-tree-paths.mjs"
+    "tree": "node scripts/build-tree-paths.mjs",
+    "deletions:check": "node scripts/backfill-deletion-tombstones.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

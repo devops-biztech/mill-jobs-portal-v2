@@ -1,7 +1,6 @@
 import { Fragment } from "react";
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Application } from "@/generated/prisma/client";
-import { getApplicationStatus } from "@/lib/applications";
 
 const styles = StyleSheet.create({
   page: { padding: 32, fontSize: 10, fontFamily: "Helvetica", color: "#1a1a1a" },
@@ -43,7 +42,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function ApplicationPdf({ app }: { app: Application }) {
   const fullName = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
-  const status = getApplicationStatus(app);
 
   // Filled slots only — SLI requires just the first reference.
   const references = [
@@ -73,7 +71,7 @@ export function ApplicationPdf({ app }: { app: Application }) {
         <Text style={styles.title}>{fullName || "Job Application"}</Text>
         <Text style={styles.subtitle}>
           {app.applicationPosition || "Position not specified"} · {app.companyName || "Unknown company"}{" "}
-          · Status: {status} · Submitted: {app.date || "Unknown date"}
+          · Date Applied: {app.date || "Unknown date"}
         </Text>
 
         <Section title="Contact information">

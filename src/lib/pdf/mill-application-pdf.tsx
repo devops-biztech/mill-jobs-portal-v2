@@ -57,6 +57,18 @@ const WATERMARK_WIDTH = 320;
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
 
+/**
+ * `app.date` is free text from the submitting form, so anything unparseable is
+ * printed as-is rather than replaced with a wrong date. Same rule as the modern
+ * template's formatter.
+ */
+function formatDate(value?: string | null) {
+  if (!value?.trim()) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value.trim();
+  return parsed.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+}
+
 function Cell({
   label,
   value,
@@ -244,7 +256,8 @@ export function MillApplicationPdf({ app, mill }: { app: Application; mill: Mill
 
         <View style={styles.outerBox}>
           <View style={styles.row}>
-            <Cell label="Position applying for" value={app.applicationPosition} last />
+            <Cell label="Position applying for" value={app.applicationPosition} flex={2} />
+            <Cell label="Date Applied" value={formatDate(app.date)} last />
           </View>
           <Bar>Personal Information</Bar>
           <View style={styles.row}>
@@ -333,11 +346,26 @@ export function MillApplicationPdf({ app, mill }: { app: Application; mill: Mill
               <Cell label="Certificate or License" value={app.tradeSchoolTwoCertificate} last />
             </View>
           ) : null}
-          <View style={styles.rowNoBorder}>
+          <View style={app.licenseTwoName ? styles.row : styles.rowNoBorder}>
             <Cell label="Special Skills / Licenses / Certificates" value={app.licenseOneName} />
             <Cell label="Issued By" value={app.licenseOneIssuedBy} />
             <Cell label="Expiration Date" value={app.licenseOneExpirationDate} last />
           </View>
+          {/*
+            * The paper form has one license line, so this second row appears
+            * only when an applicant actually filled a second one — otherwise
+            * the facsimile is unchanged. Same conditional pattern as the
+            * second trade school above. Rare but real: one TRL application
+            * carries a second license, and without this it would be the one
+            * field the printed application dropped.
+            */}
+          {app.licenseTwoName ? (
+            <View style={styles.rowNoBorder}>
+              <Cell label="Special Skills / Licenses / Certificates" value={app.licenseTwoName} />
+              <Cell label="Issued By" value={app.licenseTwoIssuedBy} />
+              <Cell label="Expiration Date" value={app.licenseTwoExpirationDate} last />
+            </View>
+          ) : null}
         </View>
 
         <Footer text={mill.footerText} />

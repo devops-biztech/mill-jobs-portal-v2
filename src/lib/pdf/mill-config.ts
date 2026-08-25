@@ -61,15 +61,18 @@ export const MILL_CONFIGS: MillConfig[] = [
   {
     companyCode: "TRL",
     /*
-     * Moved from `classic` to `modern` when TRL's online application replaced
-     * the legacy app. `classic` is a facsimile of the 7-page paper form and
-     * has no sections for skills, licenses or availability detail — it maps
-     * "Special Skills / Licenses / Certificates" onto `licenseOneName` and
-     * stops. TRL now submits the full sister-app schema, so staying on
-     * `classic` would have collected those fields from applicants and dropped
-     * every one of them from the printed application.
+     * TRL prints on `classic`, the facsimile of trl-job-app.pdf. It was moved
+     * to `modern` in 7fea011 on the theory that the classic form would drop
+     * fields the newer online application collects; measured against the 602
+     * TRL applications on hand, that gap is one applicant's second license
+     * entry, which `classic` now renders in a conditional row. College three,
+     * trade school three and licenses two and three are otherwise unused by
+     * every TRL record.
+     *
+     * `theme` below is kept, unused, so the mill can be flipped back to
+     * `modern` without re-deriving its brand colours.
      */
-    template: "modern",
+    template: "classic",
     headerTitle: "Trinity River Lumber Company",
     shortCode: "TRL",
     policyLines: [

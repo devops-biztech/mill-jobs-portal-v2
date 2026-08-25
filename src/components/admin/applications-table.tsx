@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { ApplicationListRow } from "@/lib/applications";
+import { looksLikeConfirmationNumber } from "@/lib/confirmation-number";
 import { applicationsColumns } from "@/components/admin/applications-columns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -89,7 +90,7 @@ export function ApplicationsTable({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <Input
-          placeholder="Search name, email, phone, position..."
+          placeholder="Search name, email, phone, position, confirmation no..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -190,7 +191,27 @@ export function ApplicationsTable({
             ) : (
               <TableRow>
                 <TableCell colSpan={applicationsColumns.length} className="h-24 text-center">
-                  {query ? `No applications match "${query}".` : "No applications found."}
+                  {/*
+                    * A confirmation number that finds nothing means something
+                    * different from a name that finds nothing: the applicant is
+                    * holding a receipt for a submission this portal can't see.
+                    * Say what to check rather than just "no results".
+                    */}
+                  {query && looksLikeConfirmationNumber(query) ? (
+                    <div className="space-y-1">
+                      <p>No application has that confirmation number.</p>
+                      <p className="text-sm text-muted-foreground">
+                        {company
+                          ? `Only ${company} applications are shown — clear the company filter, then `
+                          : "If it was submitted recently, "}
+                        run Sync from AWS on the overview page to import anything new.
+                      </p>
+                    </div>
+                  ) : query ? (
+                    `No applications match "${query}".`
+                  ) : (
+                    "No applications found."
+                  )}
                 </TableCell>
               </TableRow>
             )}
