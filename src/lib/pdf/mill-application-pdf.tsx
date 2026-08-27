@@ -1,6 +1,7 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Application } from "@/generated/prisma/client";
 import type { MillConfig } from "@/lib/pdf/mill-config";
+import { formatReview, type PdfReview } from "@/lib/pdf/review-line";
 
 const styles = StyleSheet.create({
   page: { padding: 26, paddingBottom: 24, fontSize: 9, fontFamily: "Helvetica", color: "#111" },
@@ -44,9 +45,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     textAlign: "center",
-    fontSize: 8,
-    fontFamily: "Helvetica-Bold",
   },
+  footerText: { fontSize: 8, fontFamily: "Helvetica-Bold" },
+  /*
+   * Portal state, not part of the paper form this page reproduces — so it sits
+   * in the footer chrome, lighter than the mill's own footer line, rather than
+   * anywhere it could read as something the applicant filled in.
+   */
+  footerReview: { fontSize: 7.5, color: "#555", marginTop: 2 },
   yesNoWrap: { flexDirection: "row", alignItems: "center", marginTop: 2 },
   yesNoOption: { fontSize: 8.5, marginLeft: 6 },
   yesNoMark: { fontFamily: "Helvetica-Bold" },
@@ -198,11 +204,24 @@ function EmploymentBlock({ title, data }: { title: string; data: EmploymentData 
   );
 }
 
-function Footer({ text }: { text: string }) {
-  return <Text style={styles.footer}>{text}</Text>;
+function Footer({ text, review }: { text: string; review: PdfReview }) {
+  return (
+    <View style={styles.footer}>
+      <Text style={styles.footerText}>{text}</Text>
+      <Text style={styles.footerReview}>{formatReview(review)}</Text>
+    </View>
+  );
 }
 
-export function MillApplicationPdf({ app, mill }: { app: Application; mill: MillConfig }) {
+export function MillApplicationPdf({
+  app,
+  mill,
+  review,
+}: {
+  app: Application;
+  mill: MillConfig;
+  review: PdfReview;
+}) {
   const fullName = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
 
   // Filled slots only: the SLI form requires just the first reference, and
@@ -368,7 +387,7 @@ export function MillApplicationPdf({ app, mill }: { app: Application; mill: Mill
           ) : null}
         </View>
 
-        <Footer text={mill.footerText} />
+        <Footer text={mill.footerText} review={review} />
       </Page>
 
       <Page size="LETTER" style={styles.page}>
@@ -452,7 +471,7 @@ export function MillApplicationPdf({ app, mill }: { app: Application; mill: Mill
           <View style={{ width: 100, borderBottomWidth: 1, borderColor: "#000" }} />
         </View>
 
-        <Footer text={mill.footerText} />
+        <Footer text={mill.footerText} review={review} />
       </Page>
     </Document>
   );

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Download } from "lucide-react";
 import { getApplicationById, getApplicationStatus } from "@/lib/applications";
 import { getAccessScope } from "@/lib/access";
+import { getApplicationReviewer } from "@/lib/audit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DetailField } from "@/components/admin/detail-field";
@@ -11,10 +12,15 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { StatusActions } from "@/components/admin/status-actions";
 import { DeleteApplicationDialog } from "@/components/admin/delete-application-dialog";
 
-function formatDateTime(value: string | null) {
+function formatDateTime(value: string | Date | null) {
   if (!value) return null;
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
+  /*
+   * Older Application rows store the submitted date as a locale string that
+   * `new Date` can't always parse, and showing it raw beats "Invalid Date".
+   * An audit timestamp arrives as a real Date and never lands here.
+   */
+  if (Number.isNaN(parsed.getTime())) return typeof value === "string" ? value : null;
   return parsed.toLocaleString("en-US");
 }
 
@@ -30,6 +36,13 @@ export default async function ApplicationDetailPage({
 
   const status = getApplicationStatus(app);
   const fullName = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
+
+  /*
+   * Only asked for when it can apply. Most reviewed applications still return
+   * null — they arrived from the AWS sync already flagged, with no actor to
+   * name — so the line below is absent far more often than it is present.
+   */
+  const reviewer = status === "reviewed" ? await getApplicationReviewer(app.id) : null;
 
   /*
    * Only the SLI form collects references, and only its first slot is
@@ -74,6 +87,12 @@ export default async function ApplicationDetailPage({
               Submitted {formatDateTime(app.date) ?? "—"}
             </span>
           </div>
+          {reviewer && (
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Reviewed by <span className="text-foreground">{reviewer.name}</span> on{" "}
+              {formatDateTime(reviewer.at)}
+            </p>
+          )}
           {/*
             * The id is what the applicant was shown as their confirmation
             * number when they submitted, so it belongs on screen where it can

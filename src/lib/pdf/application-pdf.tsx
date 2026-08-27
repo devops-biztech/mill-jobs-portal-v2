@@ -1,11 +1,13 @@
 import { Fragment } from "react";
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Application } from "@/generated/prisma/client";
+import { formatReview, type PdfReview } from "@/lib/pdf/review-line";
 
 const styles = StyleSheet.create({
   page: { padding: 32, fontSize: 10, fontFamily: "Helvetica", color: "#1a1a1a" },
   title: { fontSize: 18, fontWeight: 700, marginBottom: 2 },
-  subtitle: { fontSize: 10, color: "#555", marginBottom: 16 },
+  subtitle: { fontSize: 10, color: "#555" },
+  reviewLine: { fontSize: 9, color: "#555", marginTop: 3, marginBottom: 16 },
   section: { marginBottom: 14 },
   sectionTitle: {
     fontSize: 11,
@@ -40,7 +42,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function ApplicationPdf({ app }: { app: Application }) {
+export function ApplicationPdf({ app, review }: { app: Application; review: PdfReview }) {
   const fullName = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
 
   // Filled slots only — SLI requires just the first reference.
@@ -73,6 +75,7 @@ export function ApplicationPdf({ app }: { app: Application }) {
           {app.applicationPosition || "Position not specified"} · {app.companyName || "Unknown company"}{" "}
           · Date Applied: {app.date || "Unknown date"}
         </Text>
+        <Text style={styles.reviewLine}>{formatReview(review)}</Text>
 
         <Section title="Contact information">
           <Field label="Primary phone" value={app.primaryPhone} />

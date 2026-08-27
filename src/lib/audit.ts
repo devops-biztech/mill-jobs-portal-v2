@@ -96,3 +96,41 @@ export async function getAuditLog({
     pageCount: Math.max(1, Math.ceil(total / pageSize)),
   };
 }
+
+export type ApplicationReviewer = { name: string; at: Date };
+
+/**
+ * Who last marked this application reviewed, when the portal was what did it.
+ *
+ * Null means the current reviewed state has no actor behind it, which is the
+ * common case rather than an edge one: the AWS sync inserts applications with
+ * the upstream review flags already set and deliberately records no audit
+ * entry, and anything reviewed before the activity log existed has none
+ * either. The status badge is still correct for those — only the attribution
+ * is missing, so the caller omits the line rather than inventing a name.
+ *
+ * The newest reviewed/unreviewed entry has to be a `reviewed` one to count.
+ * A later unreview means the name attached to the older entry no longer
+ * describes the current state, and a stale reviewer is worse than none.
+ *
+ * No mill scoping here, for the same reason as `getAuditLog`: callers reach
+ * this only after `getApplicationById` has already refused ids outside their
+ * scope, so the id itself is the gate.
+ */
+export async function getApplicationReviewer(
+  applicationId: string,
+): Promise<ApplicationReviewer | null> {
+  const latest = await prisma.auditLog.findFirst({
+    where: {
+      targetId: applicationId,
+      action: {
+        in: [AUDIT_ACTIONS.applicationReviewed, AUDIT_ACTIONS.applicationUnreviewed],
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { action: true, actorName: true, createdAt: true },
+  });
+
+  if (latest?.action !== AUDIT_ACTIONS.applicationReviewed) return null;
+  return { name: latest.actorName, at: latest.createdAt };
+}

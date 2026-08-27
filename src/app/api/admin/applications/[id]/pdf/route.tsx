@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getSession } from "@/lib/auth";
-import { getApplicationById } from "@/lib/applications";
+import { getApplicationById, getApplicationStatus } from "@/lib/applications";
+import { getApplicationReviewer } from "@/lib/audit";
 import { getAccessScope } from "@/lib/access";
 import { ApplicationPdf } from "@/lib/pdf/application-pdf";
 import { MillApplicationPdf } from "@/lib/pdf/mill-application-pdf";
 import { ModernApplicationPdf } from "@/lib/pdf/modern-application-pdf";
 import { getMillConfig } from "@/lib/pdf/mill-config";
+import type { PdfReview } from "@/lib/pdf/review-line";
 
 export const runtime = "nodejs";
 
@@ -23,13 +25,21 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
   }
 
+  const status = getApplicationStatus(app);
+  const review: PdfReview = {
+    status,
+    // Only ever attributable for a reviewed one, and only when the portal is
+    // what reviewed it — the sync records no actor.
+    reviewer: status === "reviewed" ? await getApplicationReviewer(app.id) : null,
+  };
+
   const mill = getMillConfig(app.companyName);
   const document = !mill ? (
-    <ApplicationPdf app={app} />
+    <ApplicationPdf app={app} review={review} />
   ) : mill.template === "modern" ? (
-    <ModernApplicationPdf app={app} mill={mill} />
+    <ModernApplicationPdf app={app} mill={mill} review={review} />
   ) : (
-    <MillApplicationPdf app={app} mill={mill} />
+    <MillApplicationPdf app={app} mill={mill} review={review} />
   );
   const buffer = await renderToBuffer(document);
 
