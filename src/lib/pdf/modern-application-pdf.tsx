@@ -1,6 +1,7 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Application } from "@/generated/prisma/client";
 import type { MillConfig, MillTheme } from "@/lib/pdf/mill-config";
+import { formatReview, type PdfReview } from "@/lib/pdf/review-line";
 
 /**
  * Branded application PDF laid out for reading rather than for matching a
@@ -81,6 +82,9 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   metaItem: { flex: 1, paddingRight: 8 },
+  // Wider than the other two: "Reviewed by <name> on <long date>" wraps at a third,
+  // and at 1.5 it still orphaned the year onto a second line.
+  metaItemWide: { flex: 2, paddingRight: 8 },
 
   section: { marginTop: 16 },
   sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 7 },
@@ -379,7 +383,15 @@ function EmploymentCard({
   );
 }
 
-export function ModernApplicationPdf({ app, mill }: { app: Application; mill: MillConfig }) {
+export function ModernApplicationPdf({
+  app,
+  mill,
+  review,
+}: {
+  app: Application;
+  mill: MillConfig;
+  review: PdfReview;
+}) {
   const theme = mill.theme ?? FALLBACK_THEME;
   const fullName = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
   const logoWidth = LOGO_HEIGHT * mill.logoAspect;
@@ -531,6 +543,10 @@ export function ModernApplicationPdf({ app, mill }: { app: Application; mill: Mi
           <View style={styles.metaItem}>
             <Text style={[styles.label, { color: theme.muted }]}>Date Applied</Text>
             <Text style={styles.value}>{formatDate(app.date)}</Text>
+          </View>
+          <View style={styles.metaItemWide}>
+            <Text style={[styles.label, { color: theme.muted }]}>Status</Text>
+            <Text style={styles.value}>{formatReview(review)}</Text>
           </View>
         </View>
 
