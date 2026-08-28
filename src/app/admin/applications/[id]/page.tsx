@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Download } from "lucide-react";
 import { getApplicationById, getApplicationStatus } from "@/lib/applications";
 import { getAccessScope } from "@/lib/access";
-import { getApplicationReviewer } from "@/lib/audit";
+import { getApplicationReviewers } from "@/lib/reviews";
+import { getSession } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DetailField } from "@/components/admin/detail-field";
@@ -38,11 +39,15 @@ export default async function ApplicationDetailPage({
   const fullName = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
 
   /*
-   * Only asked for when it can apply. Most reviewed applications still return
-   * null — they arrived from the AWS sync already flagged, with no actor to
-   * name — so the line below is absent far more often than it is present.
+   * Reviewers are listed in the order they signed off. Often empty even for a
+   * reviewed application: anything the AWS sync flagged upstream has a status
+   * but nobody to attribute it to.
    */
-  const reviewer = status === "reviewed" ? await getApplicationReviewer(app.id) : null;
+  const [reviewers, session] = await Promise.all([
+    getApplicationReviewers(app.id),
+    getSession(),
+  ]);
+  const hasReviewed = reviewers.some((reviewer) => reviewer.userId === session?.userId);
 
   /*
    * Only the SLI form collects references, and only its first slot is
@@ -87,11 +92,15 @@ export default async function ApplicationDetailPage({
               Submitted {formatDateTime(app.date) ?? "—"}
             </span>
           </div>
-          {reviewer && (
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Reviewed by <span className="text-foreground">{reviewer.name}</span> on{" "}
-              {formatDateTime(reviewer.at)}
-            </p>
+          {reviewers.length > 0 && (
+            <div className="mt-1.5 space-y-0.5">
+              {reviewers.map((reviewer) => (
+                <p key={reviewer.userId} className="text-sm text-muted-foreground">
+                  Reviewed by <span className="text-foreground">{reviewer.name}</span> on{" "}
+                  {formatDateTime(reviewer.at)}
+                </p>
+              ))}
+            </div>
           )}
           {/*
             * The id is what the applicant was shown as their confirmation
@@ -105,7 +114,7 @@ export default async function ApplicationDetailPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <StatusActions id={app.id} status={status} />
+          <StatusActions id={app.id} hasReviewed={hasReviewed} />
           <Button
             variant="outline"
             size="sm"

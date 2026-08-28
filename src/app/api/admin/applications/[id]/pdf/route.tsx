@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getSession } from "@/lib/auth";
 import { getApplicationById, getApplicationStatus } from "@/lib/applications";
-import { getApplicationReviewer } from "@/lib/audit";
+import { getApplicationReviewers } from "@/lib/reviews";
 import { getAccessScope } from "@/lib/access";
 import { ApplicationPdf } from "@/lib/pdf/application-pdf";
 import { MillApplicationPdf } from "@/lib/pdf/mill-application-pdf";
@@ -25,12 +25,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
   }
 
-  const status = getApplicationStatus(app);
   const review: PdfReview = {
-    status,
-    // Only ever attributable for a reviewed one, and only when the portal is
-    // what reviewed it — the sync records no actor.
-    reviewer: status === "reviewed" ? await getApplicationReviewer(app.id) : null,
+    status: getApplicationStatus(app),
+    // Empty for anything the sync flagged upstream, which has a status but
+    // no reviewer to record.
+    reviewers: await getApplicationReviewers(app.id),
   };
 
   const mill = getMillConfig(app.companyName);

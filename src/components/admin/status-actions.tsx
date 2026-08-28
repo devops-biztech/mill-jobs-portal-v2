@@ -2,35 +2,45 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { setApplicationStatus } from "@/actions/applications";
+import { addApplicationReview, withdrawApplicationReview } from "@/actions/applications";
 import { Button } from "@/components/ui/button";
-import type { ApplicationStatus } from "@/lib/application-status";
 
-export function StatusActions({ id, status }: { id: string; status: ApplicationStatus }) {
+/**
+ * `hasReviewed` is about the current user, not the application: several
+ * people can sign off on the same one, so the button offers to add your own
+ * review even when colleagues have already reviewed it, and only offers to
+ * withdraw the one that is yours to withdraw.
+ */
+export function StatusActions({ id, hasReviewed }: { id: string; hasReviewed: boolean }) {
   const [isPending, startTransition] = useTransition();
 
-  function update(next: ApplicationStatus) {
+  function run(action: () => Promise<void>, message: string) {
     startTransition(async () => {
-      await setApplicationStatus(id, next);
-      toast.success(`Marked as ${next}`);
+      await action();
+      toast.success(message);
     });
   }
 
-  return (
-    <div className="flex gap-2">
+  if (hasReviewed) {
+    return (
       <Button
         size="sm"
-        variant={status === "reviewed" ? "default" : "outline"}
+        variant="ghost"
         disabled={isPending}
-        onClick={() => update("reviewed")}
+        onClick={() => run(() => withdrawApplicationReview(id), "Your review was withdrawn")}
       >
-        Mark reviewed
+        Withdraw my review
       </Button>
-      {status !== "pending" && (
-        <Button size="sm" variant="ghost" disabled={isPending} onClick={() => update("pending")}>
-          Reset to pending
-        </Button>
-      )}
-    </div>
+    );
+  }
+
+  return (
+    <Button
+      size="sm"
+      disabled={isPending}
+      onClick={() => run(() => addApplicationReview(id), "Marked as reviewed")}
+    >
+      Mark reviewed
+    </Button>
   );
 }

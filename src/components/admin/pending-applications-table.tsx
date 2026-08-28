@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { ApplicationListRow } from "@/lib/applications";
 import { formatDate } from "@/lib/format-date";
-import { setApplicationStatus } from "@/actions/applications";
+import { addApplicationReview } from "@/actions/applications";
 import {
   Table,
   TableBody,
@@ -35,7 +35,7 @@ export function PendingApplicationsTable({ rows }: { rows: ApplicationListRow[] 
 
   function markReviewed(id: string) {
     startTransition(async () => {
-      await setApplicationStatus(id, "reviewed");
+      await addApplicationReview(id);
       toast.success("Marked as reviewed");
       router.refresh();
     });
