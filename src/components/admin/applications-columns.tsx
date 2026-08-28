@@ -49,6 +49,8 @@ export const applicationsColumns: ColumnDef<ApplicationListRow>[] = [
   {
     id: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge status={getApplicationStatus(row.original)} />,
+    cell: ({ row }) => (
+      <StatusBadge status={getApplicationStatus(row.original)} reviewers={row.original.reviewers} />
+    ),
   },
 ];

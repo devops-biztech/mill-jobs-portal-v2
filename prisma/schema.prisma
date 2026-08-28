@@ -195,6 +195,33 @@ model DeletedApplication {
 /// it's gone; a relation would either block the delete or cascade the log
 /// away with it. The same reasoning covers the actor: the log has to survive
 /// a user being renamed or removed.
+/// One person's sign-off on one application. Several people can review the
+/// same application, which is why this is a row per reviewer rather than a
+/// column on `Application`.
+///
+/// `Application.receivedByCompany`/`dismissApplicant` remain the status flags
+/// the rest of the app reads — these rows carry *who*, not *whether*. The
+/// first review sets those flags and withdrawing the last one clears them, so
+/// `getApplicationStatus` keeps working unchanged and applications synced
+/// from AWS (already flagged, no reviewer) still read as reviewed.
+///
+/// No Prisma relation, matching every other model here: `deleteApplication`
+/// removes these rows explicitly in the same transaction.
+model ApplicationReview {
+  applicationId String
+  userId        String
+
+  /// Denormalised for the same reason as `AuditLog.actorName`: the name has
+  /// to outlive the user record, since accounts can be hard-deleted.
+  reviewerName String
+
+  reviewedAt DateTime @default(now())
+
+  /// Composite key, so a second click by the same person is idempotent
+  /// rather than a duplicate sign-off.
+  @@id([applicationId, userId])
+}
+
 model AuditLog {
   id String @id
 

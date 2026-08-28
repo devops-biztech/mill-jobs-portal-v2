@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getApplicationStatus } from "@/lib/application-status";
 import { looksLikeConfirmationNumber } from "@/lib/confirmation-number";
 import { companyWhereClause, type AccessScope } from "@/lib/access";
+import { getReviewersForApplications, type Reviewer } from "@/lib/reviews";
 
 export const APPLICATIONS_PAGE_SIZE = 25;
 export const RECENT_WINDOW_MONTHS = 6;
@@ -27,9 +28,16 @@ const APPLICATION_LIST_SELECT = {
   dismissApplicant: true,
 } satisfies Prisma.ApplicationSelect;
 
-export type ApplicationListRow = Prisma.ApplicationGetPayload<{
+type ApplicationListSelection = Prisma.ApplicationGetPayload<{
   select: typeof APPLICATION_LIST_SELECT;
 }>;
+
+/**
+ * List rows carry their reviewers so the table can show who signed off
+ * without a query per row. Empty for anything the sync flagged upstream,
+ * which has a status but no reviewer to name.
+ */
+export type ApplicationListRow = ApplicationListSelection & { reviewers: Reviewer[] };
 
 export async function getApplications({
   scope,
@@ -119,9 +127,10 @@ export async function getApplications({
     select: APPLICATION_LIST_SELECT,
   });
   const orderIndex = new Map(pageIds.map((id, i) => [id, i]));
-  const rows = unorderedRows.sort(
-    (a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0),
-  );
+  const reviewersByApplication = await getReviewersForApplications(pageIds);
+  const rows: ApplicationListRow[] = unorderedRows
+    .sort((a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0))
+    .map((row) => ({ ...row, reviewers: reviewersByApplication.get(row.id) ?? [] }));
 
   return {
     rows,
@@ -161,9 +170,11 @@ export async function getPendingApplications({
     select: APPLICATION_LIST_SELECT,
   });
   const orderIndex = new Map(sortedIds.map((id, i) => [id, i]));
-  const rows = unorderedRows.sort(
-    (a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0),
-  );
+  // Pending by definition means nobody has signed off, so there are no
+  // reviewers to look up — the empty list keeps the row shape uniform.
+  const rows: ApplicationListRow[] = unorderedRows
+    .sort((a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0))
+    .map((row) => ({ ...row, reviewers: [] }));
 
   return { rows, total: matches.length };
 }

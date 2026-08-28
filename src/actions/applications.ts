@@ -5,14 +5,19 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getAccessScope, canAccessCompany } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
-import { AUDIT_ACTIONS, recordAudit, type AuditActor } from "@/lib/audit";
+import { AUDIT_ACTIONS, recordAudit } from "@/lib/audit";
+import { recordReview, removeReview } from "@/lib/reviews";
 
 /** The applicant's name as the log should show it, or null if we have none. */
 function applicantLabel(app: { firstName: string | null; lastName: string | null }) {
   return [app.firstName, app.lastName].filter(Boolean).join(" ") || null;
 }
 
-export async function setApplicationStatus(id: string, status: "reviewed" | "pending") {
+/**
+ * Shared preamble: authenticate, and refuse an application outside the
+ * caller's mill scope before anything is written.
+ */
+async function requireReviewableApplication(id: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
@@ -25,38 +30,51 @@ export async function setApplicationStatus(id: string, status: "reviewed" | "pen
     throw new Error("Application not found");
   }
 
-  const actor: AuditActor = { id: session.userId, name: session.fullName };
+  return { session, app };
+}
 
-  // receivedByCompany and dismissApplicant are treated as the same real-world
-  // action ("reviewed"), so both are set together to keep them in sync.
-  await prisma.$transaction(async (tx) => {
-    await tx.application.update({
-      where: { id },
-      data: {
-        receivedByCompany: status === "reviewed",
-        dismissApplicant: status === "reviewed",
-      },
-    });
-
-    await recordAudit(
-      {
-        actor,
-        action:
-          status === "reviewed"
-            ? AUDIT_ACTIONS.applicationReviewed
-            : AUDIT_ACTIONS.applicationUnreviewed,
-        targetId: id,
-        targetLabel: applicantLabel(app),
-        companyName: app.companyName,
-      },
-      tx,
-    );
-  });
-
+function revalidateApplication(id: string) {
   revalidatePath("/admin");
   revalidatePath("/admin/applications");
   revalidatePath(`/admin/applications/${id}`);
   revalidatePath("/admin/logs");
+}
+
+/**
+ * Records the current user's sign-off. Several people can review the same
+ * application, so this adds a reviewer rather than setting a flag — an
+ * `upsert`, so clicking twice restamps rather than failing on the key.
+ *
+ * The `receivedByCompany`/`dismissApplicant` booleans stay the status the
+ * rest of the app reads; they are set here and cleared only when the last
+ * review is withdrawn. Keeping them authoritative is what lets applications
+ * synced from AWS — flagged upstream, with no reviewer to record — go on
+ * reading as reviewed.
+ */
+export async function addApplicationReview(id: string) {
+  const { session, app } = await requireReviewableApplication(id);
+
+  await recordReview({
+    applicationId: id,
+    actor: { id: session.userId, name: session.fullName },
+    applicantLabel: applicantLabel(app),
+    companyName: app.companyName,
+  });
+
+  revalidateApplication(id);
+}
+
+export async function withdrawApplicationReview(id: string) {
+  const { session, app } = await requireReviewableApplication(id);
+
+  await removeReview({
+    applicationId: id,
+    actor: { id: session.userId, name: session.fullName },
+    applicantLabel: applicantLabel(app),
+    companyName: app.companyName,
+  });
+
+  revalidateApplication(id);
 }
 
 /**
@@ -94,6 +112,15 @@ export async function deleteApplication(id: string) {
      * permanently skewing the demographic ones.
      */
     await tx.applicantDemographics.deleteMany({ where: { applicationId: id } });
+
+    /*
+     * Reviews have no relation either, for the same reason nothing else here
+     * does — so they get no cascade and have to go by hand. Leaving them
+     * would re-attach the old reviewers to a new application if the upstream
+     * record ever came back under the same id.
+     */
+    await tx.applicationReview.deleteMany({ where: { applicationId: id } });
+
     await tx.application.delete({ where: { id } });
 
     /*
