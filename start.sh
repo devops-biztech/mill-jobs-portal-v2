@@ -5,6 +5,7 @@
 #   ./start.sh --demo          # demo mode: synthetic data, isolated db/demo.sqlite3
 #   ./start.sh --demo --reset  # demo mode, wipe and regenerate the demo data
 #   ./start.sh --build         # production build + start instead of dev server
+#   ./start.sh -p 3000         # override the port (default: 3000, or 3209 for --demo/--build)
 #
 # Normal mode never touches demo data or generates fake secrets — it expects
 # a real .env and a real database, per README.md ("Get a copy from another
@@ -52,7 +53,7 @@ if [[ "$RESET" == true && "$DEMO" == false ]]; then
 fi
 
 if [[ -z "$PORT" ]]; then
-  PORT=$([[ "$BUILD" == true ]] && echo 3209 || echo 3000)
+  PORT=$([[ "$BUILD" == true || "$DEMO" == true ]] && echo 3209 || echo 3000)
 fi
 
 port_in_use() {
