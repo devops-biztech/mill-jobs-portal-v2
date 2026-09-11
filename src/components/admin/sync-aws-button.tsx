@@ -16,6 +16,14 @@ export function SyncAwsButton() {
     startTransition(async () => {
       try {
         const result = await syncFromAws();
+
+        if (result.demoMode) {
+          toast.info("Sync is disabled in demo mode", {
+            description: "There's no live AWS connection to pull from here.",
+          });
+          return;
+        }
+
         const hadFailures = result.failedDecrypt > 0 || result.failedOther > 0;
         // Deleted records are held back rather than re-imported; say so, so
         // that a sync which appears to do nothing is legible.

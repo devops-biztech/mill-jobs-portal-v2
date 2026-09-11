@@ -56,9 +56,33 @@ gitignored, so a deploy must run it explicitly before building.
 | `npm run tree` | Regenerate the login page artwork (see below) |
 | `npm run deletions:check` | Reconcile deletion tombstones against the activity log (see *Deploying*) |
 
+## `start.sh`
+
+`./start.sh` is a safety-checked wrapper around the build-and-serve steps below
+(`prisma generate` → `prisma db push` → `npm run build` → `npm start`), and refuses
+to run while a `next dev` server is up rather than risk corrupting its `.next`
+cache (see *Do not break the dev server* in AGENTS.md).
+
+```bash
+./start.sh                  # real mode: needs .env, same steps as "Deploying" below
+./start.sh --demo           # demo mode: no .env needed, seeds fake data on first run
+./start.sh --demo --reset   # demo mode, wiping and regenerating the demo data first
+```
+
+Demo mode needs none of the keys in the table above. It points at its own
+`db/demo-db.sqlite3` (never touches `db/app-db.sqlite3`), seeds ~70 fake
+applications and three login accounts (`admin`, `trl.reviewer`, `srm.reviewer`,
+all with password `MillDemo123!` — printed to the terminal on seed), and turns
+"Sync from AWS" into a no-op, since that's the only thing in this app that makes
+an outbound network call. A small "Demo Mode" badge appears in the admin header
+so it's never mistaken for the real thing. Re-running `./start.sh --demo` reuses
+whatever's already in `db/demo-db.sqlite3`; pass `--reset` to start over. See
+`scripts/seed-demo.mjs` for what gets generated.
+
 ## Deploying
 
-Two steps are not automatic:
+`./start.sh` runs the steps below for you. They're spelled out here for anyone
+deploying by hand instead. Two steps are not automatic:
 
 - **`prisma generate` is not part of `npm run build`**, and `src/generated/prisma`
   is gitignored, so a fresh checkout has no client until it is run.
